@@ -2,8 +2,6 @@ import threading
 import queue
 import socket
 import json
-import uuid
-import re
 
 from messages import *
 from hosts import *
@@ -55,9 +53,6 @@ def mod_global_sync(flag, chain = None, nodes = None):
 
 
 def comm_thread_fn(node_index):
-    
-    global IS_UPDATE_NODES
-    global IS_UPDATE_BLKCHN
     
     node = NODES_LIST[node_index]
     name = node['name']

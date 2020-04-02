@@ -59,9 +59,7 @@ def listen_thread_fn(sock):
             try:
                 data = conn.recv(1024)
                 if data:
-                    
                     data = data.decode('utf-8')
-                    
                     MSG_QUEUE[index].put(data)
                         
                 else:

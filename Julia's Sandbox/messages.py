@@ -12,7 +12,7 @@ def StrToMsg(_str): return json.loads(_str)
 
 def SendMsg(sock, msg):
     msg_str = MsgToStr(msg)
-    sock.send(msg_str)
+    sock.sendall(msg_str)
 
 def SendMsgType(sock, msgtype, header, chain = None, nodes = None):
     
@@ -38,11 +38,6 @@ def SendMsgType(sock, msgtype, header, chain = None, nodes = None):
         msg = ConstructUpdateGOL(header, nodes)
         
     SendMsg(sock, msg)
-    
-def RecvMsg(sock):
-    json_data = sock.recv(1024)
-    msg = StrToMsg(json_data)
-    return msg
 
 def ConstructHeader(send_ip, send_name, recv_ip, recv_name):
     
