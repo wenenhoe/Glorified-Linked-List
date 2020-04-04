@@ -6,15 +6,20 @@ import json
 import socket
 import warnings
 
+ENDBYTES = '\1'
+
 def MsgToStr(msg): return json.dumps(msg)
 
-def StrToMsg(_str): return json.loads(_str)
+def StrToMsg(_str):
+    return json.loads(_str)
 
 def SendMsg(sock, msg):
-    msg_str = MsgToStr(msg)
-    sock.sendall(msg_str)
+    msg_str = MsgToStr(msg) + ENDBYTES
+    sock.sendall(msg_str.encode('utf-8'))
 
 def SendMsgType(sock, msgtype, header, chain = None, nodes = None):
+    
+    print("[*] Sending msg of type {}".format(msgtype))
     
     if msgtype == 'Hello Request':
         msg = ConstructHelloRequests(header)
@@ -25,12 +30,13 @@ def SendMsgType(sock, msgtype, header, chain = None, nodes = None):
     if msgtype == 'UpdateChain Request':
         if chain == None: 
             warnings.warn("chain is None, provided msgtype might be wrong")
-        msg = ConstructUpdateChangeRequest(header, chain)
+            
+        msg = ConstructUpdateChainRequest(header, chain.object_to_str())
         
     if msgtype == 'UpdateChain Reply':
         if chain == None: 
             warnings.warn("chain is None, provided msgtype might be wrong")
-        msg = ConstructUpdateChainReply(header, chain)
+        msg = ConstructUpdateChainReply(header, chain.object_to_str())
         
     if msgtype == "UpdateGOL":
         if nodes == None: 
@@ -85,7 +91,7 @@ def ConstructHelloReply(header):
     
     return msg
 
-def ConstructUpdateChangeRequest(header, chain):
+def ConstructUpdateChainRequest(header, chain):
     
     '''
     UpdateChain Request contains:
