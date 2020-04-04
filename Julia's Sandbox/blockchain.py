@@ -1,5 +1,6 @@
 import hashlib
 import datetime
+import pickle
 
 
 class Block:
@@ -27,7 +28,7 @@ class Blockchain:
         if latest_block == None:
             latest_block = Block("The Times 03/Jan/2009 Chancellor on brink of second bailout for banks", "0", None)
         if load_object:
-            latest_block = bytes_array_to_object(latest_block)
+            latest_block = pickle.loads(latest_block)
         self.latest_block = latest_block
 
 
@@ -50,11 +51,11 @@ class Blockchain:
 
     def verify_chain(self):
         if self.latest_block.previous_block == None:
-            if verify_genesis_block(self.latest_block):
+            if self.verify_genesis_block(self.latest_block):
                 return True
         else:
             current_block = self.latest_block
-            if current_block.hash == current_block.generated_hash():
+            if current_block.hash == current_block.generate_hash():
                 while current_block is not None:
                     if self.verify_block(current_block):
                         current_block = current_block.previous_block
@@ -74,9 +75,5 @@ class Blockchain:
 
     def object_to_bytes_array(self):
         return pickle.dumps(self.latest_block)
-
-
-    def bytes_array_to_object(self, bytes_array):
-        return pickle.loads(bytes_array)
 
 
