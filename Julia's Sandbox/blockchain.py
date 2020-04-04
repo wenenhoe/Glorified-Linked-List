@@ -77,3 +77,21 @@ class Blockchain:
         return pickle.dumps(self.latest_block)
 
 
+def is_current_chain_dropped(curr_chain, new_chain):
+    if curr_chain.verify_chain() and new_chain.verify_chain():
+        if curr_chain.latest_block.hash < new_chain.latest_block.hash:
+            curr_chain.latest_block = new_chain.latest_block
+            return True
+    return False
+        
+
+##a = Blockchain()
+##a.add_block("Hello World")
+##a.add_block("Goodbye World")
+##a.add_block("Screw this")
+##
+##b = Blockchain()
+##b.add_block("Hello World")
+##b.add_block("Goodbye World")
+##
+##print(is_current_chain_dropped(a, b) == False)
