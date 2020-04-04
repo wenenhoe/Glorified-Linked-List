@@ -27,9 +27,18 @@ class Blockchain:
     def __init__(self, latest_block=None, load_object=False):
         if latest_block == None:
             latest_block = Block("The Times 03/Jan/2009 Chancellor on brink of second bailout for banks", "0", None)
+            chain_length = 1
         if load_object:
             latest_block = pickle.loads(latest_block)
+            chain_length = 0
+            curr_block = latest_block
+
+            while latest_block != None:
+                latest_block = latest_block.previous_block
+                chain_length += 1
+                
         self.latest_block = latest_block
+        self.chain_length = chain_length
 
 
     def verify_genesis_block(self, block):
@@ -69,6 +78,7 @@ class Blockchain:
         if self.verify_chain():
             new_block = Block(data, self.latest_block.generate_hash(), self.latest_block)
             self.latest_block = new_block
+            self.chain_length += 1
             return True
         return False
 
@@ -79,19 +89,25 @@ class Blockchain:
 
 def is_current_chain_dropped(curr_chain, new_chain):
     if curr_chain.verify_chain() and new_chain.verify_chain():
-        if curr_chain.latest_block.hash < new_chain.latest_block.hash:
+        if curr_chain.chain_length < new_chain.chain_length:
             curr_chain.latest_block = new_chain.latest_block
             return True
+        if curr_chain.chain_length == new_chain.chain_length:
+            if curr_chain.latest_block.hash < new_chain.latest_block.hash:
+                curr_chain.latest_block = new_chain.latest_block
+                return True
     return False
         
 
 ##a = Blockchain()
 ##a.add_block("Hello World")
 ##a.add_block("Goodbye World")
-##a.add_block("Screw this")
+##print(a.chain_length)
 ##
 ##b = Blockchain()
 ##b.add_block("Hello World")
 ##b.add_block("Goodbye World")
+##b.add_block("Screw this")
+##print(b.chain_length)
 ##
-##print(is_current_chain_dropped(a, b) == False)
+##print(is_current_chain_dropped(a, b) == True)
