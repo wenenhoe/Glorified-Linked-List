@@ -24,28 +24,14 @@ class Block:
 
 
 class Blockchain:
-    def __init__(self, latest_block=None, load_object=False):
-        if latest_block == None:
-            latest_block = Block("The Times 03/Jan/2009 Chancellor on brink of second bailout for banks", "0", None)
-            chain_length = 1
-        if load_object:
-            latest_block = pickle.loads(latest_block)
-            chain_length = 0
-            curr_block = latest_block
-
-            while latest_block != None:
-                latest_block = latest_block.previous_block
-                chain_length += 1
-                
-        self.latest_block = latest_block
-        self.chain_length = chain_length
-
+    def __init__(self):
+        self.latest_block = Block("The Times 03/Jan/2009 Chancellor on brink of second bailout for banks", "0", None)
+        self.chain_length = 1
 
     def verify_genesis_block(self, block):
         if block.hash == block.generate_hash() and block.hash == 'e862806402a0a51a751f662ac110c936cee1838bb9d884e05bb26ce5704425cd':
             return True
         return False
-
     
     def verify_block(self, block):
         if block.previous_block == None:
@@ -56,7 +42,6 @@ class Blockchain:
             if block.previous_hash == previous_block_generated_hash and block.previous_block.hash == previous_block_generated_hash:
                 return True
         return False
-
 
     def verify_chain(self):
         if self.latest_block.previous_block == None:
@@ -72,7 +57,6 @@ class Blockchain:
                         return False
                 return True
         return False
-
     
     def add_block(self, data):
         if self.verify_chain():
@@ -81,10 +65,6 @@ class Blockchain:
             self.chain_length += 1
             return True
         return False
-
-
-    def object_to_bytes_array(self):
-        return pickle.dumps(self.latest_block)
 
 
 def is_current_chain_dropped(curr_chain, new_chain):
@@ -99,15 +79,9 @@ def is_current_chain_dropped(curr_chain, new_chain):
     return False
         
 
-##a = Blockchain()
-##a.add_block("Hello World")
-##a.add_block("Goodbye World")
-##print(a.chain_length)
-##
-##b = Blockchain()
-##b.add_block("Hello World")
-##b.add_block("Goodbye World")
-##b.add_block("Screw this")
-##print(b.chain_length)
-##
-##print(is_current_chain_dropped(a, b) == True)
+def object_to_bytes_array(obj): # To store Blockchain object as bytes_array
+    return pickle.dumps(obj)
+
+
+def bytes_array_to_object(bytes_arr): # To load bytes_array as Blockchain object
+    return pickle.loads(bytes_arr)
