@@ -1,3 +1,6 @@
+# Simple p2p implementation example
+# ~ JuliaPoo
+
 import socket
 import queue
 from threading import Thread

@@ -2,6 +2,11 @@
 # Messages are in plaintext. Despite being inefficient, 
 # the readability suffices for our proof-of-concept intentions
 
+# Chains are pickle dumped base64 encoded strings. This allows chains to
+# contain any sort of data.
+
+# ~ wenenhoe
+
 import json
 import socket
 import warnings

@@ -1,3 +1,8 @@
+# Contains the code that runs the blockchain host
+# Takes in argument n (int) that indicates the host's index
+# (List of hosts contained in hosts.py)
+# ~ JuliaPoo
+
 import queue
 import socket
 import json
@@ -14,9 +19,12 @@ from hosts import *
 from blockchain import *
 from recycle import *
 
+# To support large chain lengths
+# This is generally not a good idea due to python's being inefficient with the stack
+# but it is a quick fix.
 sys.setrecursionlimit(100000)
 
-BUFFER_SIZE = 1024
+BUFFER_SIZE = 10000
 PORT_NUMBER = 4004 # Port to listen to
 
 # Network info
@@ -28,14 +36,20 @@ BLOCKCHAIN = Blockchain()
 BLOCKCHAIN_QUEUE = queue.Queue()
 RECYCLE_QUEUE = []
 INPUT_QUEUE = queue.Queue()
-MOD_GLOBAL_LOCK = threading.Lock()
 MSG_QUEUE = [queue.Queue() for i in range(N_NODES)]
 BROADCAST_QUEUE = [queue.Queue() for i in range(N_NODES)]
+MOD_GLOBAL_LOCK = threading.Lock()
 
 # Online status
 OWN_STATUS = True
 
 def init_server_sock():
+    
+    '''
+    Initialises the listening socket
+    
+    returns listening socket (socket.Socket obj)
+    '''
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((OWN_IP, PORT_NUMBER))
@@ -43,6 +57,13 @@ def init_server_sock():
     return sock
 
 def init_client_socket(ip_addr):
+    
+    '''
+    Initialises connection socket
+    ip_addr: string, ip of host to connect to
+    
+    returns connection socket (socket.Socket obj)
+    '''
     
     while True:
         socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,13 +77,21 @@ def init_client_socket(ip_addr):
             
 def listen_thread_fn(sock):
     
+    '''
+    Listening Thread that spawns more threads for each connection established
+        For each host it listens data to, it adds to the message queue of the
+        communicating thread of said host to respond to the message.
+    
+    sock: Listening socket (socket.Socket obj)
+    '''
+    
     def recv_data(conn, addr):
         index = NODE_IP_LIST.index(addr[0])      
         while True:
             try:
                 all_data = b""
                 while True:
-                    data = conn.recv(10000)
+                    data = conn.recv(BUFFER_SIZE)
                     if data:
                         all_data += data
                         idx = data.find(ENDBYTES.encode('utf-8'))
@@ -90,11 +119,57 @@ def listen_thread_fn(sock):
         
 def mod_global_sync(flag, chain = None, nodes = None, data = None, timestamp = None, host = None):
     
+    '''
+    Wrapper for mod_globals_fn but with a lock so 
+    only 1 thread can run mod_globals_fnat the same time
+    
+    Reason for this wrapper is that the operations of
+    mod_global_sync is not thread safe.
+    
+    Thread safe operations of globals are instead put into comm_thread_fn for efficiency 
+    '''
+    
     MOD_GLOBAL_LOCK.acquire()
     mod_globals_fn(flag, chain = chain, nodes = nodes, data = data, timestamp = timestamp, host = host)
     MOD_GLOBAL_LOCK.release()
     
 def mod_globals_fn(flag, chain = None, nodes = None, data = None, timestamp = None, host = None): 
+    
+    '''
+    Modifies global variables NODES_LIST, BLOCKCHAIN, RECYCLE_QUEUE
+    
+    flag:
+        "UPDATE NODES": 
+            UpdateGol msg received, replace NODES with nodes data in msg
+        "UPDATE BLKCHN": 
+            Chain received from other hosts. Update own blockchain accordingly
+                Use is_current_chain_dropped to determine if to keep own chain
+                Update recycle queue accordingly [*]
+        "ADD_BLOCK":
+            Adds block to chain, recycle queue and broadcast change
+    chain:
+        Chain from message. (Block obj)
+        Used only in "UPDATE BLKCHN"
+    nodes:
+        nodes information from message
+        Used only in "UPDATE BLKCHN"
+    timestamp:
+        timestamp of new block (datetime obj)
+        Used only in "ADD_BLOCK"
+    data:
+        data of new block
+        Used only in "ADD_BLOCK"
+    host:
+        host that sent the msg.
+        Used only in "UPDATE BLKCHN"
+    
+                
+    [*]
+    for each block in recycle queue, 
+        if all node's chain has said block, remove from queue
+        if all node's chain doesn't have said block, 
+        add back to Blockchain and broadcast change
+    '''
     
     global NODES_LIST
     global BLOCKCHAIN
@@ -139,7 +214,6 @@ def mod_globals_fn(flag, chain = None, nodes = None, data = None, timestamp = No
             for idx, q in enumerate(BROADCAST_QUEUE):
                 if idx == host or idx == HOST_NO: continue
                 q.put("UpdateChain Reply")
-                print("BROAD", list(q.queue))
         
     if flag == "ADD_BLOCK":
         if data == None: warnings.warn("data is None, provided flag might be wrong")
@@ -156,6 +230,30 @@ def mod_globals_fn(flag, chain = None, nodes = None, data = None, timestamp = No
     return
      
 def comm_thread_fn(node_index):
+    
+    '''
+    Handles sending of messages to host specified by node_index
+    Messages are received from a message queue.
+    
+    If received Hello Request:
+        Update NODES
+        Reply with Hello Reply
+        
+    if received UpdateGOL:
+        replace NODES with node data in msg
+        
+    if received UpdateChain Request:
+        Update NODES
+        Reply with UpdateChain Reply
+        
+    if received UpdateChain Reply:
+        Update NODES
+        Update BLOCKCHAIN and RECYCLE_QUEUE
+        
+    In the event connection errors:
+        Assume host is down and periodically send Hello Request
+        
+    '''
     
     node = NODES_LIST[node_index]
     name = node['name']
@@ -205,6 +303,8 @@ def comm_thread_fn(node_index):
             print(e)
             traceback.print_exc()
             
+            client_socket = init_client_socket(ip_addr)
+            
             NODES_LIST[node_index]['details']['isonline'] = False
             
             # Empty all broadcast
@@ -221,6 +321,14 @@ def comm_thread_fn(node_index):
             
 
 def host_init():
+    
+    '''
+    Initialises host:
+    
+    Gets network status by broadcasting Hello Request
+    Once obtained network status, broadcast UPDATE_GOL
+    Gets latest chain by broadcasting UpdateChain Request
+    '''
 
     global OWN_STATUS
     
@@ -256,6 +364,13 @@ def host_init():
     
 def periodic_threads():
     
+    '''
+    Thread responsible for periodic operations
+    
+    Every minute broadcast Hello Request to get network status
+    Every 3 minutes broadcast UpdateChain Request to verify latest chain
+    '''
+    
     print("[*] Initialising periodic broadcast threads\n", end="")
     def broadcast_hello():
         while(True):
@@ -282,9 +397,21 @@ def periodic_threads():
 
 def offline_thread():
     
+    '''
+    Thread that checks if own host is offline.
+    If offline, periodically sends Hello Request
+    Once online again, re-initialises hosts
+    '''
+    
     global OWN_STATUS
     
     while True:
+        
+        isonline_count = sum([n['details']['isonline'] for n in NODES_LIST])
+        time.sleep(5)
+        
+        if isonline_count < (N_NODES-1) // 2:
+            OWN_STATUS = False
         
         if OWN_STATUS: continue
         
@@ -293,13 +420,24 @@ def offline_thread():
         for q in BROADCAST_QUEUE:
             q.put("Hello Request")
         time.sleep(5)
-
-        isonline_count = sum([n['details']['isonline'] for n in NODES_LIST])
+        
         if isonline_count >= (N_NODES-1) // 2:
             print("[*] Online. Reverting to online execution\n", end="")
+            host_init()
             OWN_STATUS = True
     
 def input_thread():
+    
+    '''
+    Thread that takes user input.
+    
+    If input = "print status":
+        prints network status
+    if input = "print chain":
+        prints contents of own chain
+    if input = "query timestamp <timestamp>":
+        retrieves all entries in chain with timestamp
+    '''
     
     time.sleep(5)
     
@@ -340,6 +478,11 @@ def input_thread():
         mod_globals_fn("ADD_BLOCK", data = data, timestamp = datetime.datetime.utcnow())
                 
 def main():
+    
+    '''
+    Initialises host and starts the threads.
+    parent thread then becomes the input thread.
+    '''
     
     global HOST_NO
     global OWN_NODE
