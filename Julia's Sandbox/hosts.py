@@ -1,5 +1,6 @@
-NODE_IP_LIST = ["127.0.0.1", "127.0.0.2", "127.0.0.3"]
-NODE_NAME_LIST = ["Host 1", "Host 2", "Host 3"]
+
+NODE_IP_LIST = ['127.0.0.1', '127.0.0.2', '127.0.0.3', '127.0.0.4', '127.0.0.5']
+NODE_NAME_LIST = ['Host 1', 'Host 2', 'Host 3', 'Host 4', 'Host 5']
 
 def NodelistToGOL(nodelist): return json.dumps(nodelist)
 
