@@ -349,13 +349,13 @@ def host_init():
     # Broadcast UpdateGOL to send nodes latest network state
     print("[*] Collecting network status\n", end="")
     for idx,q in enumerate(BROADCAST_QUEUE):
-        idx == HOST_NO
+        if idx == HOST_NO: continue
         q.put("UpdateGOL")
     
     # Broadcast UpdateChain Request to retrieve latest chain
     print("[*] Retrieving latest chain\n", end="")
     for idx,q in enumerate(BROADCAST_QUEUE):
-        idx == HOST_NO
+        if idx == HOST_NO: continue
         q.put("UpdateChain Request")
     time.sleep(10)
     
@@ -417,7 +417,8 @@ def offline_thread():
         
         # Offline mode
         
-        for q in BROADCAST_QUEUE:
+        for idx,q in enumerate(BROADCAST_QUEUE):
+            if idx == HOST_NO: continue
             q.put("Hello Request")
         time.sleep(5)
         
@@ -475,7 +476,7 @@ def input_thread():
             continue
             
         
-        mod_globals_fn("ADD_BLOCK", data = data, timestamp = datetime.datetime.utcnow())
+        mod_global_sync("ADD_BLOCK", data = data, timestamp = datetime.datetime.utcnow())
                 
 def main():
     
